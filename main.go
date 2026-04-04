@@ -91,7 +91,7 @@ func main() {
 	}
 
 	fmt.Println("==================================================")
-	fmt.Println("Loaded AUTH KEY from config/environment")
+	fmt.Printf("Loaded AUTH KEY: %s\n", cfg.AuthKey)
 	fmt.Println("Connected to Database")
 	fmt.Println("==================================================")
 
