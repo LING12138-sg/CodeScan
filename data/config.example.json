@@ -1,0 +1,20 @@
+{
+  "auth_key": "replace-with-generated-auth-key",
+  "db_config": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "",
+    "dbname": "codescan"
+  },
+  "ai_config": {
+    "api_key": "replace-with-api-key",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-5.4"
+  },
+  "scanner_config": {
+    "context_soft_limit_bytes": 90000,
+    "context_hard_limit_bytes": 140000,
+    "context_summary_window_messages": 12
+  }
+}

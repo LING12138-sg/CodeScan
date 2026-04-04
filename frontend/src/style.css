@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  @apply bg-cyber-dark text-slate-200 antialiased overflow-hidden;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(0, 243, 255, 0.15), transparent 40%),
+    radial-gradient(circle at 0% 50%, rgba(188, 19, 254, 0.1), transparent 40%),
+    radial-gradient(circle at 100% 50%, rgba(0, 243, 255, 0.1), transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-cyber-dark;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full transition-colors;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-cyber-primary;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  @apply bg-glass-100 backdrop-blur-xl border border-glass-200 shadow-2xl;
+}
+
+.glass-input {
+  @apply bg-glass-100 border border-glass-200 text-white placeholder-slate-500 focus:border-cyber-primary focus:ring-1 focus:ring-cyber-primary transition-all duration-300;
+}
+
+.glass-button {
+  @apply bg-gradient-to-r from-cyber-primary to-blue-600 text-black font-bold shadow-[0_0_20px_rgba(0,243,255,0.3)] hover:shadow-[0_0_35px_rgba(0,243,255,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0;
+}
+
+/* Grid Background */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}

@@ -1,0 +1,35 @@
+# Local cache and build output
+/.cache/
+/bin/
+/release/
+
+# User-uploaded audit targets
+/projects/
+
+# Frontend dependencies and build output
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.cache/
+/frontend/.vite/
+
+# Local runtime data
+/data/config.json
+/data/tasks.json
+/data/*.db
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Packaged artifacts
+*.exe
+*.zip
+*.log
+
+# Local analysis/design notes that should stay out of OSS repo
+/CONTEXT_COMPRESSION_IMPLEMENTATION.md
+/frontend/ANIMATION_SPECS.md
+/frontend/BROWSER_COMPATIBILITY_REPORT.md
+/frontend/DESIGN_SYSTEM.md
