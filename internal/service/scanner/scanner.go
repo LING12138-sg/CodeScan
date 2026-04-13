@@ -350,13 +350,13 @@ func resolveToolPath(basePath string, path string) (string, error) {
 	cleanResolved := filepath.Clean(resolved)
 	rel, err := filepath.Rel(cleanBase, cleanResolved)
 	if err != nil {
-		return "", fmt.Errorf("Error: unable to resolve path '%s': %w", path, err)
+		return "", fmt.Errorf("error: unable to resolve path '%s': %w", path, err)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", fmt.Errorf("Error: path '%s' is outside the project directory", path)
+		return "", fmt.Errorf("error: path '%s' is outside the project directory", path)
 	}
 	if pathHasSkippedComponent(rel) {
-		return "", fmt.Errorf("Error: path '%s' is inside an ignored directory", path)
+		return "", fmt.Errorf("error: path '%s' is inside an ignored directory", path)
 	}
 	return cleanResolved, nil
 }
@@ -380,7 +380,7 @@ func (s messageHistoryStats) changed() bool {
 }
 
 func (s messageHistoryStats) summary(context string) string {
-	parts := []string{}
+	var parts []string
 	if s.droppedToolMessages > 0 {
 		parts = append(parts, fmt.Sprintf("%d orphan/mismatched tool messages", s.droppedToolMessages))
 	}
@@ -604,7 +604,7 @@ This summary will be used to restart the conversation with a clean state.
 IMPORTANT: Do NOT use any tools. Just provide the summary text.`,
 		},
 	}
-	contextToSummarize := []openai.ChatCompletionMessage{}
+	var contextToSummarize []openai.ChatCompletionMessage
 	if rollingSummary != nil && *rollingSummary != "" {
 		contextToSummarize = append(contextToSummarize, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleUser,

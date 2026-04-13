@@ -532,11 +532,46 @@ func writeFileAtomic(path string, data []byte) error {
 	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
 		return fmt.Errorf("write temp file: %w", err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("rename temp file: %w", err)
+	const maxRenameAttempts = 8
+	var renameErr error
+	for attempt := 1; attempt <= maxRenameAttempts; attempt++ {
+		renameErr = os.Rename(tmpPath, path)
+		if renameErr == nil {
+			return nil
+		}
+		if attempt == maxRenameAttempts || !isRetryableAtomicRenameError(renameErr) {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * 20 * time.Millisecond)
 	}
-	return nil
+	if writeErr := os.WriteFile(path, data, 0o644); writeErr == nil {
+		_ = os.Remove(tmpPath)
+		return nil
+	} else {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("rename temp file: %w; direct write fallback failed: %v", renameErr, writeErr)
+	}
+}
+
+func isRetryableAtomicRenameError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, os.ErrPermission) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	markers := []string{
+		"access is denied",
+		"sharing violation",
+		"used by another process",
+	}
+	for _, marker := range markers {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func selectResumableRuntimeStage(task *model.Task) (string, error) {
@@ -566,7 +601,7 @@ func selectResumableRuntimeStage(task *model.Task) (string, error) {
 		if err := json.Unmarshal(data, &state); err != nil {
 			continue
 		}
-		if state.Status == runtimeStatusPaused || state.Status == runtimeStatusRunning {
+		if isResumableRuntimeStatus(state.Status) {
 			candidates = append(candidates, candidate{stage: entry.Name(), state: state})
 		}
 	}
@@ -583,4 +618,23 @@ func selectResumableRuntimeStage(task *model.Task) (string, error) {
 		return 1
 	})
 	return candidates[0].stage, nil
+}
+
+func isResumableRuntimeStatus(status string) bool {
+	return status == runtimeStatusPaused || status == runtimeStatusRunning || status == runtimeStatusFailed
+}
+
+func isStageResumable(task *model.Task, stage string) (bool, error) {
+	data, err := os.ReadFile(filepath.Join(task.StageRuntimePath(stage), runtimeStateFile))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	var state runtimeState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return false, nil
+	}
+	return isResumableRuntimeStatus(state.Status), nil
 }

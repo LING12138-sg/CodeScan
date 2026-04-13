@@ -160,6 +160,8 @@ export const messages = {
     auditView: {
       runAudit: '运行 {stage} 审计',
       auditInProgress: '审计进行中...',
+      resumeFromRuntime: '从断点继续',
+      resuming: '继续中...',
       gapCheck: '补扫',
       gapChecking: '补扫中...',
       revalidateFindings: '复核发现',
@@ -223,6 +225,7 @@ export const messages = {
     alerts: {
       failedLoadTaskDetails: '加载任务详情失败',
       stageStarted: '阶段已启动，请在控制台查看进度。',
+      stageResumed: '阶段继续成功，正在从断点恢复。',
       failedToStartStage: '启动阶段失败：{message}',
       gapCheckStarted: '补扫已启动，请在控制台查看进度。',
       findingRevalidationStarted: '发现复核已启动，请在控制台查看进度。',
@@ -411,6 +414,8 @@ export const messages = {
     auditView: {
       runAudit: 'Run {stage} Audit',
       auditInProgress: 'Audit in Progress...',
+      resumeFromRuntime: 'Resume From Checkpoint',
+      resuming: 'Resuming...',
       gapCheck: 'Gap Check',
       gapChecking: 'Gap Checking...',
       revalidateFindings: 'Revalidate Findings',
@@ -474,6 +479,7 @@ export const messages = {
     alerts: {
       failedLoadTaskDetails: 'Failed to load task details',
       stageStarted: 'Stage started! Check Console for progress.',
+      stageResumed: 'Stage resumed from checkpoint. Check Console for progress.',
       failedToStartStage: 'Failed to start stage: {message}',
       gapCheckStarted: 'Gap check started. Review the console for progress.',
       findingRevalidationStarted: 'Finding revalidation started. Review the console for progress.',

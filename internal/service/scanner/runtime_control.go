@@ -43,6 +43,28 @@ func ResumeAIScan(task *model.Task) (string, error) {
 	return stage, nil
 }
 
+func ResumeAIScanStage(task *model.Task, stage string) error {
+	task.BasePath = task.GetBasePath()
+	resumable, err := isStageResumable(task, stage)
+	if err != nil {
+		return err
+	}
+	if !resumable {
+		return fmt.Errorf("stage %s has no resumable runtime state; re-run this stage instead", stage)
+	}
+
+	kind := StageRunInitial
+	if stage != "init" {
+		var current model.TaskStage
+		if err := database.DB.Select("meta").Where("task_id = ? AND name = ?", task.ID, stage).First(&current).Error; err == nil {
+			kind = stageRunKindFromMeta(current)
+		}
+	}
+
+	go runAIScan(task, stage, kind, true)
+	return nil
+}
+
 func pauseRequested(taskID, stage string) bool {
 	var task model.Task
 	if err := database.DB.Select("status").First(&task, "id = ?", taskID).Error; err == nil {

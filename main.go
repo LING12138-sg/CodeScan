@@ -101,5 +101,9 @@ func main() {
 	// Init Router
 	router.InitRouter(r, cfg.AuthKey)
 
-	r.Run(":8089")
+	err := r.Run(":8089")
+	if err != nil {
+		fmt.Println("Error starting server on 8089:", err)
+		return
+	}
 }

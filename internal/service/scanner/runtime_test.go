@@ -138,7 +138,7 @@ func TestPreservedReadFileArtifactLogUsesRelativePath(t *testing.T) {
 	}
 }
 
-func TestSelectResumableRuntimeStageChoosesNewestPausedOrRunningState(t *testing.T) {
+func TestSelectResumableRuntimeStageChoosesNewestResumableState(t *testing.T) {
 	task := newTestTask(t)
 
 	writeState := func(stage, status string, updatedAt time.Time) {
@@ -164,13 +164,14 @@ func TestSelectResumableRuntimeStageChoosesNewestPausedOrRunningState(t *testing
 
 	writeState("init", runtimeStatusPaused, time.Now().Add(-2*time.Minute))
 	writeState("auth", runtimeStatusRunning, time.Now())
+	writeState("xss", runtimeStatusFailed, time.Now().Add(2*time.Minute))
 
 	stage, err := selectResumableRuntimeStage(task)
 	if err != nil {
 		t.Fatalf("select resumable stage: %v", err)
 	}
-	if stage != "auth" {
-		t.Fatalf("expected auth to win, got %q", stage)
+	if stage != "xss" {
+		t.Fatalf("expected xss to win, got %q", stage)
 	}
 }
 

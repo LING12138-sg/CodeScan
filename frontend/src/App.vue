@@ -565,6 +565,16 @@ const revalidateStage = async (taskId, stageName) => runStagePostAction(
   }
 )
 
+const resumeStage = async (taskId, stageName) => runStagePostAction(
+  taskId,
+  stageName,
+  'resume',
+  t('actionNames.resume'),
+  {
+    successMessage: t('alerts.stageResumed'),
+  }
+)
+
 const canGapCheckStage = (task, stageName) => {
   if (!task || task.status === 'running') return false
   if (stageName === 'init') return Array.isArray(parseResultArray(task?.output_json || task?.result))
@@ -577,6 +587,14 @@ const canRevalidateStage = (task, stageName) => {
   const stage = getStageRecord(task, stageName)
   const parsed = parseResultArray(stage?.output_json || stage?.result)
   return Boolean(stage && stage.status === 'completed' && Array.isArray(parsed) && parsed.length > 0)
+}
+
+const canResumeStage = (task, stageName) => {
+  if (!task || task.status === 'running') return false
+  if (stageName === 'init') return task.status === 'paused' || task.status === 'failed'
+  const stage = getStageRecord(task, stageName)
+  if (!stage) return false
+  return stage.status === 'paused' || stage.status === 'failed'
 }
 
 const repairJSON = async (taskId, stageName) => {
@@ -1556,11 +1574,14 @@ onBeforeUnmount(() => {
               :task-running="selectedTask.status === 'running'"
               :gap-check-pending="isStageActionPending(currentAuditDefinition.key, 'gap-check')"
               :revalidate-pending="isStageActionPending(currentAuditDefinition.key, 'revalidate')"
+              :resume-pending="isStageActionPending(currentAuditDefinition.key, 'resume')"
               :can-gap-check="canGapCheckStage(selectedTask, currentAuditDefinition.key)"
               :can-revalidate="canRevalidateStage(selectedTask, currentAuditDefinition.key)"
+              :can-resume="canResumeStage(selectedTask, currentAuditDefinition.key)"
               @back="currentView = 'task-detail'"
               @update:activeTab="activeTab = $event"
               @run="runStage(selectedTask.id, currentAuditDefinition.key)"
+              @resume="resumeStage(selectedTask.id, currentAuditDefinition.key)"
               @gap-check="runGapCheck(selectedTask.id, currentAuditDefinition.key)"
               @revalidate="revalidateStage(selectedTask.id, currentAuditDefinition.key)"
               @repair="repairJSON(selectedTask.id, currentAuditDefinition.key)"

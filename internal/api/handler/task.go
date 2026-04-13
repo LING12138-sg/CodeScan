@@ -102,12 +102,21 @@ func UploadHandler(c *gin.Context) {
 
 	// Unzip
 	if err := utils.Unzip(zipPath, projectPath); err != nil {
-		os.Remove(zipPath)
-		os.RemoveAll(projectPath)
+		err := os.Remove(zipPath)
+		if err != nil {
+			return
+		}
+		err = os.RemoveAll(projectPath)
+		if err != nil {
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unzip failed: " + err.Error()})
 		return
 	}
-	os.Remove(zipPath)
+	err = os.Remove(zipPath)
+	if err != nil {
+		return
+	}
 
 	task := &model.Task{
 		ID:         id,
@@ -237,6 +246,35 @@ func ResumeTaskHandler(c *gin.Context) {
 	task.Status = "running"
 	database.DB.Save(&task)
 	c.JSON(http.StatusOK, gin.H{"status": "resumed", "stage": stage, "task": task})
+}
+
+func ResumeStageHandler(c *gin.Context) {
+	id := c.Param("id")
+	stageName := c.Param("stage_name")
+	if !isSupportedStageName(stageName) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported stage"})
+		return
+	}
+
+	var task model.Task
+	if err := database.DB.First(&task, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		return
+	}
+	if task.Status == "running" {
+		c.JSON(http.StatusConflict, gin.H{"error": "Task is already running"})
+		return
+	}
+
+	task.BasePath = task.GetBasePath()
+	if err := scanner.ResumeAIScanStage(&task, stageName); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+
+	task.Status = "running"
+	database.DB.Save(&task)
+	c.JSON(http.StatusOK, gin.H{"status": "resumed", "stage": stageName, "task": task})
 }
 
 func RunStageHandler(c *gin.Context) {

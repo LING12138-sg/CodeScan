@@ -63,9 +63,17 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canResume: {
+    type: Boolean,
+    default: false,
+  },
+  resumePending: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['back', 'run', 'gap-check', 'revalidate', 'repair', 'update:activeTab'])
+const emit = defineEmits(['back', 'run', 'resume', 'gap-check', 'revalidate', 'repair', 'update:activeTab'])
 
 const expandedKey = ref('')
 
@@ -281,6 +289,15 @@ function toggleDetails(key) {
         >
           <component :is="stageDefinition.icon" class="w-4 h-4" />
           {{ taskRunning ? t('auditView.auditInProgress') : t('auditView.runAudit', { stage: stageDefinition.shortLabel }) }}
+        </button>
+        <button
+          type="button"
+          @click="emit('resume')"
+          :disabled="!canResume || resumePending || taskRunning"
+          class="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-100 border border-white/10 rounded-lg font-bold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw :class="['w-4 h-4', resumePending ? 'animate-spin' : '']" />
+          {{ resumePending ? t('auditView.resuming') : t('auditView.resumeFromRuntime') }}
         </button>
         <button
           type="button"

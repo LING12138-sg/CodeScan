@@ -25,6 +25,7 @@ func InitRouter(r *gin.Engine, authKey string) {
 			auth.DELETE("/tasks/:id", handler.DeleteTaskHandler)
 			auth.POST("/tasks/:id/pause", handler.PauseTaskHandler)
 			auth.POST("/tasks/:id/resume", handler.ResumeTaskHandler)
+			auth.POST("/tasks/:id/stage/:stage_name/resume", handler.ResumeStageHandler)
 			auth.POST("/tasks/:id/stage/:stage_name", handler.RunStageHandler)
 			auth.POST("/tasks/:id/stage/:stage_name/gap-check", handler.GapCheckStageHandler)
 			auth.POST("/tasks/:id/stage/:stage_name/revalidate", handler.RevalidateStageHandler)
