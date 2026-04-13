@@ -51,6 +51,8 @@ const isLoading = ref(false)
 const isTaskLoading = ref(false)
 const isDownloadingReport = ref(false)
 const stageActionPending = ref({})
+const rescanLogOffsetByTask = ref({})
+const lastInitRoutesByTask = ref({})
 const sidebarOpen = ref(true)
 const consoleContainer = ref(null)
 const activeTab = ref('console')
@@ -282,7 +284,9 @@ const currentLogs = computed(() => {
     if (!currentAuditStage.value) return []
     return currentAuditStage.value.logs || []
   }
-  return selectedTask.value.logs || []
+  const taskLogs = selectedTask.value.logs || []
+  const offset = rescanLogOffsetByTask.value[selectedTask.value.id] || 0
+  return taskLogs.slice(offset)
 })
 
 const parsedResult = computed(() => {
@@ -293,7 +297,14 @@ const parsedResult = computed(() => {
   } else {
     raw = selectedTask.value?.output_json || selectedTask.value?.result
   }
-  return parseResultArray(raw)
+  const parsed = parseResultArray(raw)
+  if (parsed !== null) return parsed
+
+  if (!auditViews.value[currentView.value] && selectedTask.value?.id) {
+    const cached = lastInitRoutesByTask.value[selectedTask.value.id]
+    if (Array.isArray(cached)) return cached
+  }
+  return null
 })
 
 const currentRawResult = computed(() => {
@@ -501,6 +512,10 @@ const runStage = async (taskId, stageName, options = {}) => {
   const { skipConfirm = false, successMessage = t('alerts.stageStarted') } = options
   if (!skipConfirm && !confirm(t('confirm.startStage', { stage: stageDisplayName(stageName) }))) return false
 
+  const key = stageActionKey(stageName, 'start')
+  if (stageActionPending.value[key]) return false
+
+  stageActionPending.value = { ...stageActionPending.value, [key]: true }
   try {
     await axios.post(`${API_URL}/tasks/${taskId}/stage/${stageName}`, {}, authConfig())
     activeTab.value = 'console'
@@ -512,6 +527,10 @@ const runStage = async (taskId, stageName, options = {}) => {
   } catch (e) {
     alert(t('alerts.failedToStartStage', { message: e.response?.data?.error || e.message }))
     return false
+  } finally {
+    const next = { ...stageActionPending.value }
+    delete next[key]
+    stageActionPending.value = next
   }
 }
 
@@ -674,6 +693,18 @@ watch(() => currentLogs.value?.length, () => {
   }
 })
 
+watch(
+  () => [selectedTask.value?.id, selectedTask.value?.output_json, selectedTask.value?.result],
+  () => {
+    const task = selectedTask.value
+    if (!task?.id) return
+    const parsed = parseResultArray(task.output_json || task.result)
+    if (!Array.isArray(parsed)) return
+    lastInitRoutesByTask.value = { ...lastInitRoutesByTask.value, [task.id]: parsed }
+  },
+  { immediate: true }
+)
+
 const animateValue = (key, target) => {
   const start = displayStats.value[key] || 0
   const duration = 1500
@@ -817,6 +848,11 @@ const deleteTask = async (id) => {
 
 const taskAction = async (id, action) => {
   if (action === 'start') {
+    if (selectedTask.value?.id === id) {
+      const existingLogs = Array.isArray(selectedTask.value.logs) ? selectedTask.value.logs : []
+      rescanLogOffsetByTask.value = { ...rescanLogOffsetByTask.value, [id]: existingLogs.length }
+      activeTab.value = 'console'
+    }
     await runStage(id, 'init', { skipConfirm: true, successMessage: t('alerts.scanStarted') })
     return
   }
@@ -1114,11 +1150,18 @@ onBeforeUnmount(() => {
                     <span class="px-2 py-0.5 rounded-full bg-white/10 text-xs text-slate-300">{{ reportStages.length }}</span>
                   </button>
                   <button 
-                    v-if="selectedTask.status === 'pending' || selectedTask.status === 'failed'"
+                    v-if="selectedTask.status === 'pending'"
                     @click="taskAction(selectedTask.id, 'start')"
                     class="glass-button px-5 py-2.5 rounded-lg flex items-center gap-2"
                   >
                     <Play class="w-4 h-4" /> {{ t('taskDetail.startScan') }}
+                  </button>
+                  <button
+                    v-if="selectedTask.status === 'paused' || selectedTask.status === 'failed'"
+                    @click="taskAction(selectedTask.id, 'start')"
+                    class="glass-button px-5 py-2.5 rounded-lg flex items-center gap-2"
+                  >
+                    <Play class="w-4 h-4" /> {{ t('taskDetail.rescan') }}
                   </button>
                   <button 
                     v-if="selectedTask.status === 'running'"
@@ -1128,11 +1171,11 @@ onBeforeUnmount(() => {
                     <Pause class="w-4 h-4" /> {{ t('common.pause') }}
                   </button>
                   <button 
-                    v-if="selectedTask.status === 'paused'"
+                    v-if="selectedTask.status === 'paused' || selectedTask.status === 'failed'"
                     @click="taskAction(selectedTask.id, 'resume')"
                     class="glass-button px-5 py-2.5 rounded-lg flex items-center gap-2"
                   >
-                    <Play class="w-4 h-4" /> {{ t('common.resume') }}
+                    <Play class="w-4 h-4" /> {{ t('taskDetail.continueScan') }}
                   </button>
                   <button 
                     @click="deleteTask(selectedTask.id)" 
@@ -1644,7 +1687,7 @@ onBeforeUnmount(() => {
                     <div v-for="(log, i) in currentLogs" :key="i" class="text-slate-400 break-all hover:bg-white/5 px-1 rounded flex gap-3 animate-fade-in">
                       <span class="text-slate-600 select-none whitespace-nowrap text-xs pt-0.5">{{ log.substring(1, 9) }}</span>
                       <span :class="{
-                        'text-cyber-primary': log.includes('AI:'), 
+                        'text-cyber-primary': log.includes('AI:'),
                         'text-yellow-400': log.includes('Executing tool'),
                         'text-red-400': log.includes('Error') || log.includes('failed'),
                         'text-green-400': log.includes('completed')
@@ -1817,7 +1860,7 @@ onBeforeUnmount(() => {
                     <div v-for="(log, i) in currentLogs" :key="i" class="text-slate-400 break-all hover:bg-white/5 px-1 rounded flex gap-3 animate-fade-in">
                       <span class="text-slate-600 select-none whitespace-nowrap text-xs pt-0.5">{{ log.substring(1, 9) }}</span>
                       <span :class="{
-                        'text-cyber-primary': log.includes('AI:'), 
+                        'text-cyber-primary': log.includes('AI:'),
                         'text-yellow-400': log.includes('Executing tool'),
                         'text-red-400': log.includes('Error') || log.includes('failed'),
                         'text-green-400': log.includes('completed')
@@ -1880,7 +1923,7 @@ onBeforeUnmount(() => {
                      <div v-if="parsedResult.length === 0" class="text-center py-10 text-green-400">
                         <CheckCircle class="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>No Injection Vulnerabilities Found</p>
-                        <button 
+                        <button
                           v-if="currentRawResult && currentRawResult.length > 50"
                           @click="repairJSON(selectedTask.id, 'injection')"
                           :disabled="isRepairing"

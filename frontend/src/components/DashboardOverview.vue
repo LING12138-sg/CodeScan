@@ -361,8 +361,8 @@ function submittedLabel(value) {
             <tr
               v-for="(task, index) in tasks"
               :key="task.id"
-              :class="['group transition-colors duration-200', selectedTaskId === task.id ? 'bg-white/5' : 'hover:bg-white/5']"
-              :style="{ animation: `fadeInUp 0.5s ease-out ${index * 0.06}s forwards`, opacity: 0 }"
+              :class="['group transition-colors duration-200 animate-fade-in', selectedTaskId === task.id ? 'bg-white/5' : 'hover:bg-white/5']"
+              :style="{ animationDelay: `${index * 0.06}s` }"
             >
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">

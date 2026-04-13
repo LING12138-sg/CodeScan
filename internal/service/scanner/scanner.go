@@ -1925,6 +1925,21 @@ Base Path: %s
 		logFunc(message)
 	}
 
+	handlePauseRequest := func() bool {
+		if !pauseRequested(task.ID, stage) {
+			return false
+		}
+		task.Status = "paused"
+		updateTaskStatus(task, "paused")
+		if currentStage != nil {
+			currentStage.Status = "paused"
+			saveTaskStageRecord(currentStage)
+		}
+		_ = session.markStatus(runtimeStatusPaused)
+		logFunc("Pause requested. Runtime state saved.")
+		return true
+	}
+
 	// Chat Loop
 	const maxIterations = 200
 	softLimitBytes := config.Scanner.ContextCompression.SoftLimitBytes
@@ -1938,15 +1953,7 @@ Base Path: %s
 		config.Scanner.ContextCompression.SummaryWindowMessages,
 	))
 	for i := 0; i < maxIterations; i++ {
-		if pauseRequested(task.ID, stage) {
-			task.Status = "paused"
-			updateTaskStatus(task, "paused")
-			if currentStage != nil {
-				currentStage.Status = "paused"
-				saveTaskStageRecord(currentStage)
-			}
-			_ = session.markStatus(runtimeStatusPaused)
-			logFunc("Pause requested. Runtime state saved.")
+		if handlePauseRequest() {
 			return
 		}
 
@@ -1979,14 +1986,52 @@ Base Path: %s
 
 		maxRetries := 10
 		for retry := 0; retry < maxRetries; retry++ {
+			if handlePauseRequest() {
+				return
+			}
+
 			attemptTimeout := currentAIRequestTimeout
 			ctxReq, cancel := context.WithTimeout(ctx, attemptTimeout)
+			pauseSignal := make(chan struct{}, 1)
+			monitorDone := make(chan struct{})
+			go func() {
+				defer close(monitorDone)
+				ticker := time.NewTicker(250 * time.Millisecond)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ctxReq.Done():
+						return
+					case <-ticker.C:
+						if pauseRequested(task.ID, stage) {
+							select {
+							case pauseSignal <- struct{}{}:
+							default:
+							}
+							cancel()
+							return
+						}
+					}
+				}
+			}()
 			resp, callErr = client.CreateChatCompletion(ctxReq, openai.ChatCompletionRequest{
 				Model:    config.AI.Model,
 				Messages: messages,
 				Tools:    Tools,
 			})
 			cancel()
+			<-monitorDone
+			pausedDuringRequest := false
+			select {
+			case <-pauseSignal:
+				pausedDuringRequest = true
+			default:
+			}
+			if pausedDuringRequest {
+				if handlePauseRequest() {
+					return
+				}
+			}
 			if callErr == nil {
 				break
 			}
@@ -2022,7 +2067,19 @@ Base Path: %s
 					retry+1,
 				))
 			}
-			time.Sleep(time.Duration(retry+1) * time.Second)
+			backoff := time.Duration(retry+1) * time.Second
+			remaining := backoff
+			for remaining > 0 {
+				if handlePauseRequest() {
+					return
+				}
+				sleepFor := 250 * time.Millisecond
+				if remaining < sleepFor {
+					sleepFor = remaining
+				}
+				time.Sleep(sleepFor)
+				remaining -= sleepFor
+			}
 		}
 
 		if callErr != nil {
@@ -2244,15 +2301,7 @@ Base Path: %s
 				return
 			}
 
-			if pauseRequested(task.ID, stage) {
-				task.Status = "paused"
-				updateTaskStatus(task, "paused")
-				if currentStage != nil {
-					currentStage.Status = "paused"
-					saveTaskStageRecord(currentStage)
-				}
-				_ = session.markStatus(runtimeStatusPaused)
-				logFunc("Pause requested. Runtime state saved.")
+			if handlePauseRequest() {
 				return
 			}
 		}

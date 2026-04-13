@@ -138,6 +138,8 @@ export const messages = {
     taskDetail: {
       reportExport: '报告导出',
       startScan: '开始扫描',
+      rescan: '重新扫描',
+      continueScan: '继续扫描',
       routeInventory: '路由清单',
       routesCount: '{count} 条路由',
       refreshingTaskDetail: '正在刷新任务详情...',
@@ -392,6 +394,8 @@ export const messages = {
     taskDetail: {
       reportExport: 'Report Export',
       startScan: 'Start Scan',
+      rescan: 'Rescan',
+      continueScan: 'Continue Scan',
       routeInventory: 'Route Inventory',
       routesCount: '{count} routes',
       refreshingTaskDetail: 'Refreshing task detail...',

@@ -295,8 +295,18 @@ func RunStageHandler(c *gin.Context) {
 	}
 
 	task.BasePath = task.GetBasePath()
+	startGate := database.DB.Model(&model.Task{}).
+		Where("id = ? AND status <> ?", id, "running").
+		Update("status", "running")
+	if startGate.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start stage"})
+		return
+	}
+	if startGate.RowsAffected == 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "Task is already running"})
+		return
+	}
 	task.Status = "running"
-	database.DB.Model(&task).Update("status", "running")
 
 	go scanner.RunAIScan(&task, stageName)
 	c.JSON(http.StatusOK, gin.H{"status": "stage started", "stage": stageName})
