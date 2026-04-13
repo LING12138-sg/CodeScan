@@ -102,21 +102,12 @@ func UploadHandler(c *gin.Context) {
 
 	// Unzip
 	if err := utils.Unzip(zipPath, projectPath); err != nil {
-		err := os.Remove(zipPath)
-		if err != nil {
-			return
-		}
-		err = os.RemoveAll(projectPath)
-		if err != nil {
-			return
-		}
+		_ = os.Remove(zipPath)
+		_ = os.RemoveAll(projectPath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unzip failed: " + err.Error()})
 		return
 	}
-	err = os.Remove(zipPath)
-	if err != nil {
-		return
-	}
+	_ = os.Remove(zipPath)
 
 	task := &model.Task{
 		ID:         id,
@@ -267,9 +258,14 @@ func ResumeStageHandler(c *gin.Context) {
 	}
 
 	task.BasePath = task.GetBasePath()
-	if err := scanner.ResumeAIScanStage(&task, stageName); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
+
+	if stageName == "static_scan" {
+		go scanner.RunStaticScan(&task)
+	} else {
+		if err := scanner.ResumeAIScanStage(&task, stageName); err != nil {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	task.Status = "running"
@@ -308,7 +304,12 @@ func RunStageHandler(c *gin.Context) {
 	}
 	task.Status = "running"
 
-	go scanner.RunAIScan(&task, stageName)
+	if stageName == "static_scan" {
+		go scanner.RunStaticScan(&task)
+	} else {
+		go scanner.RunAIScan(&task, stageName)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"status": "stage started", "stage": stageName})
 }
 
@@ -408,6 +409,10 @@ func RevalidateStageHandler(c *gin.Context) {
 func RepairJSONHandler(c *gin.Context) {
 	id := c.Param("id")
 	stageName := c.Query("stage")
+	if stageName == "static_scan" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Static scan does not support AI JSON repair"})
+		return
+	}
 
 	var task model.Task
 	if err := database.DB.First(&task, "id = ?", id).Error; err != nil {

@@ -90,8 +90,22 @@ const expectedTypeByStage = {
 
 const normalizedResults = computed(() => Array.isArray(props.results) ? props.results : [])
 const expectedType = computed(() => expectedTypeByStage[props.stageDefinition.key] || '')
+const canUseAIRepair = computed(() => props.stageDefinition.key !== 'static_scan')
+
+function isStaticScanFinding(item) {
+  if (!item || typeof item !== 'object') return false
+  if (!item.location || typeof item.location !== 'object') return false
+  if (!item.location.file) return false
+  if (!('vulnerable_code' in item)) return false
+  return Boolean(item.description)
+}
+
 const resultsMatchExpectedType = computed(() => {
   if (!normalizedResults.value.length) return true
+  if (props.stageDefinition.key === 'static_scan') {
+    return normalizedResults.value.every(isStaticScanFinding)
+  }
+  if (!expectedType.value) return true
   return normalizedResults.value[0]?.type === expectedType.value
 })
 const activeFindings = computed(() => normalizedResults.value.filter(item => verificationStatus(item) !== 'rejected'))
@@ -428,7 +442,7 @@ function toggleDetails(key) {
               <CheckCircle class="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>{{ t('auditView.noVulnsFound', { stage: stageDefinition.shortLabel }) }}</p>
               <button
-                v-if="rawResult && rawResult.length > 50"
+                v-if="canUseAIRepair && rawResult && rawResult.length > 50"
                 @click="emit('repair')"
                 :disabled="isRepairing"
                 class="mt-4 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs rounded border border-white/5 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
@@ -475,6 +489,7 @@ function toggleDetails(key) {
             </div>
 
             <button
+              v-if="canUseAIRepair"
               @click="emit('repair')"
               :disabled="isRepairing"
               class="px-5 py-2.5 bg-cyber-primary/10 hover:bg-cyber-primary/20 text-cyber-primary border border-cyber-primary/30 rounded-lg flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(0,243,255,0.1)]"
@@ -487,7 +502,7 @@ function toggleDetails(key) {
 
         <div v-else-if="rawResult" class="font-mono text-sm text-slate-300 whitespace-pre-wrap p-4 bg-slate-950 rounded">
           {{ rawResult }}
-          <div class="mt-4 pt-4 border-t border-white/10">
+          <div v-if="canUseAIRepair" class="mt-4 pt-4 border-t border-white/10">
             <button
               @click="emit('repair')"
               :disabled="isRepairing"

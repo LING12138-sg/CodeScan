@@ -69,6 +69,14 @@ const displayOrigin = (origin) => t(`origin.${String(origin || '').trim().toLowe
 
 const stageBaseDefinitions = [
   {
+    key: 'static_scan',
+    view: 'task-static',
+    icon: FileCode,
+    gradientClass: 'from-blue-500/15 via-blue-500/5 to-transparent',
+    iconClass: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    cardClass: 'border-blue-500/20'
+  },
+  {
     key: 'rce',
     view: 'task-rce',
     icon: ShieldAlert,
@@ -433,6 +441,7 @@ const isTypedResult = (result, type) => Array.isArray(result) && result.length >
 const isRCEResult = (result) => isTypedResult(result, 'RCE')
 const isInjectionResult = (result) => isTypedResult(result, 'Injection')
 const isAuthenticationResult = (result) => isTypedResult(result, 'Authentication')
+const isStaticScanResult = (result) => Array.isArray(result) && result.length > 0 && result[0].location && result[0].vulnerable_code !== undefined && !result[0].proof_type && !result[0].sink_type && result[0].description
 const isAuthorizationResult = (result) => isTypedResult(result, 'Authorization')
 const isXSSResult = (result) => isTypedResult(result, 'XSS')
 const isConfigurationResult = (result) => isTypedResult(result, 'Configuration')
@@ -1229,7 +1238,7 @@ onBeforeUnmount(() => {
                     <div v-for="(log, i) in currentLogs" :key="i" class="text-slate-400 break-all hover:bg-white/5 px-1 rounded flex gap-3 animate-fade-in">
                       <span class="text-slate-600 select-none whitespace-nowrap text-xs pt-0.5">{{ log.substring(1, 9) }}</span>
                       <span :class="{
-                        'text-cyber-primary': log.includes('AI:'), 
+                        'text-cyber-primary': log.includes('AI:'),
                         'text-yellow-400': log.includes('Executing tool'),
                         'text-red-400': log.includes('Error') || log.includes('failed'),
                         'text-green-400': log.includes('completed')
@@ -1383,6 +1392,16 @@ onBeforeUnmount(() => {
                   </div>
 
                   <!-- Fallback Text View if not JSON -->
+                  <div v-else-if="parsedResult && isStaticScanResult(parsedResult)" class="h-full flex flex-col items-center justify-center text-slate-600">
+                     <p class="mb-4">{{ t('taskDetail.auditCompleted', { stage: stageLabelByKey.static_scan }) }}</p>
+                     <button
+                        @click="currentView = 'task-static'"
+                        class="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded flex items-center gap-2 transition-all"
+                     >
+                        <FileCode class="w-4 h-4" />
+                        {{ t('taskDetail.viewStageResults', { stage: stageShortLabelByKey.static_scan || 'Static' }) }}
+                     </button>
+                  </div>
                   <div v-else-if="selectedTask.result" class="font-mono text-sm text-slate-300 whitespace-pre-wrap">
                     {{ selectedTask.result }}
                     <div class="mt-4 pt-4 border-t border-white/10">
@@ -1695,7 +1714,7 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                   <div v-else class="h-full flex flex-col items-center justify-center text-slate-600">
-                     <p>Ready to start audit.</p>
+                    <p>Ready to start audit.</p>
                   </div>
                 </div>
 
@@ -1868,7 +1887,7 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                   <div v-else class="h-full flex flex-col items-center justify-center text-slate-600">
-                     <p>Ready to start injection audit.</p>
+                    <p>Ready to start injection audit.</p>
                   </div>
                 </div>
 
@@ -1914,7 +1933,7 @@ onBeforeUnmount(() => {
                            <div>
                               <div class="text-xs text-slate-500 uppercase mb-1">HTTP POC Payload</div>
                               <div class="relative group">
-                                 <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-amber-400 overflow-x-auto border border-white/5">{{ vuln.poc }}</pre>
+                                 <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-green-400 overflow-x-auto border border-white/5">{{ vuln.poc }}</pre>
                                  <button class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 px-2 py-1 bg-white/10 text-white text-xs rounded">Copy</button>
                               </div>
                            </div>
@@ -1923,6 +1942,7 @@ onBeforeUnmount(() => {
                      <div v-if="parsedResult.length === 0" class="text-center py-10 text-green-400">
                         <CheckCircle class="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>No Injection Vulnerabilities Found</p>
+                        <!-- Optional Repair button if user suspects error -->
                         <button
                           v-if="currentRawResult && currentRawResult.length > 50"
                           @click="repairJSON(selectedTask.id, 'injection')"
@@ -1969,7 +1989,7 @@ onBeforeUnmount(() => {
                      </div>
                   </div>
                   <div v-else class="h-full flex flex-col items-center justify-center text-slate-600">
-                    <p>No Injection results available.</p>
+                    <p>No injection audit results available.</p>
                   </div>
                 </div>
               </div>
@@ -2068,21 +2088,40 @@ onBeforeUnmount(() => {
                             <div class="font-mono text-sm text-cyber-primary">
                               {{ vuln.trigger?.method }} {{ vuln.trigger?.path }}
                             </div>
-                            <div v-if="vuln.trigger?.parameter" class="text-xs text-slate-400 mt-2">
+                            <div class="text-xs text-slate-400 mt-2">
+                              Proof Type: <span class="font-mono">{{ formatResultField(vuln.proof_type) || 'Unknown' }}</span>
+                            </div>
+                            <div v-if="vuln.trigger?.parameter" class="text-xs text-slate-400 mt-1">
                               Parameter: <span class="font-mono">{{ vuln.trigger?.parameter }}</span>
                             </div>
                           </div>
                           <div class="bg-black/30 p-3 rounded border border-white/5">
-                            <div class="text-xs text-slate-500 uppercase mb-1">Auth Mechanism</div>
-                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.auth_mechanism) || 'Unknown' }}</div>
+                            <div class="text-xs text-slate-500 uppercase mb-1">Authentication State</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.authentication_state) || 'Unknown' }}</div>
                           </div>
                           <div class="bg-black/30 p-3 rounded border border-white/5">
+                            <div class="text-xs text-slate-500 uppercase mb-1">Required Privilege</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.required_privilege) || 'Not provided' }}</div>
+                          </div>
+                          <div class="bg-black/30 p-3 rounded border border-white/5">
+                            <div class="text-xs text-slate-500 uppercase mb-1">Access Boundary</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.access_boundary) || 'Not provided' }}</div>
+                          </div>
+                          <div class="bg-black/30 p-3 rounded border border-white/5">
+                            <div class="text-xs text-slate-500 uppercase mb-1">Attacker Profile</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.attacker_profile) || 'Not provided' }}</div>
+                          </div>
+                          <div class="bg-black/30 p-3 rounded border border-white/5">
+                            <div class="text-xs text-slate-500 uppercase mb-1">Target Profile</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.target_profile) || 'Not provided' }}</div>
+                          </div>
+                          <div class="bg-black/30 p-3 rounded border border-white/5">
+                            <div class="text-xs text-slate-500 uppercase mb-1">Target Resource</div>
+                            <div class="text-sm text-slate-300">{{ formatResultField(vuln.target_resource) || 'Not provided' }}</div>
+                          </div>
+                          <div class="bg-black/30 p-3 rounded border border-white/5 md:col-span-2">
                             <div class="text-xs text-slate-500 uppercase mb-1">Affected Endpoints</div>
                             <pre class="text-xs font-mono text-sky-300 whitespace-pre-wrap">{{ formatResultField(vuln.affected_endpoints) || 'Not provided' }}</pre>
-                          </div>
-                          <div class="bg-black/30 p-3 rounded border border-white/5">
-                            <div class="text-xs text-slate-500 uppercase mb-1">Session Artifact</div>
-                            <pre class="text-xs font-mono text-slate-300 whitespace-pre-wrap">{{ formatResultField(vuln.session_artifact) || 'Not applicable' }}</pre>
                           </div>
                         </div>
 
@@ -2288,20 +2327,10 @@ onBeforeUnmount(() => {
                             <div class="text-xs text-slate-500 uppercase mb-1">Target Resource</div>
                             <div class="text-sm text-slate-300">{{ formatResultField(vuln.target_resource) || 'Not provided' }}</div>
                           </div>
-                          <div class="bg-black/30 p-3 rounded border border-white/5">
+                          <div class="bg-black/30 p-3 rounded border border-white/5 md:col-span-2">
                             <div class="text-xs text-slate-500 uppercase mb-1">Affected Endpoints</div>
-                            <pre class="text-xs font-mono text-indigo-300 whitespace-pre-wrap">{{ formatResultField(vuln.affected_endpoints) || 'Not provided' }}</pre>
+                            <pre class="text-xs font-mono text-sky-300 whitespace-pre-wrap">{{ formatResultField(vuln.affected_endpoints) || 'Not provided' }}</pre>
                           </div>
-                        </div>
-
-                        <div v-if="formatResultField(vuln.authorization_logic)">
-                          <div class="text-xs text-slate-500 uppercase mb-1">Authorization Logic</div>
-                          <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-slate-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">{{ formatResultField(vuln.authorization_logic) }}</pre>
-                        </div>
-
-                        <div v-if="formatResultField(vuln.bypass_vector)">
-                          <div class="text-xs text-slate-500 uppercase mb-1">Bypass Vector</div>
-                          <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-indigo-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">{{ formatResultField(vuln.bypass_vector) }}</pre>
                         </div>
 
                         <div v-if="formatResultField(vuln.execution_logic)">
@@ -2316,7 +2345,7 @@ onBeforeUnmount(() => {
 
                         <div v-if="formatResultField(vuln.poc_http)">
                           <div class="text-xs text-slate-500 uppercase mb-1">Raw HTTP POC</div>
-                          <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-indigo-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">{{ formatResultField(vuln.poc_http) }}</pre>
+                          <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-sky-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">{{ formatResultField(vuln.poc_http) }}</pre>
                         </div>
 
                         <div v-if="formatResultField(vuln.trigger_steps)">
@@ -2716,7 +2745,7 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div v-if="formatResultField(vuln.vulnerable_code)">
-                          <div class="text-xs text-slate-500 uppercase mb-1">Vulnerable Code / Config</div>
+                          <div class="text-xs text-slate-500 uppercase mb-1">Vulnerable Code</div>
                           <pre class="bg-slate-950 p-4 rounded text-xs font-mono text-blue-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">{{ formatResultField(vuln.vulnerable_code) }}</pre>
                         </div>
 

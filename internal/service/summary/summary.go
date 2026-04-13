@@ -57,6 +57,7 @@ type stageDefinition struct {
 }
 
 var knownStages = []stageDefinition{
+	{Key: "static_scan", Label: "Static Scan"},
 	{Key: "rce", Label: "RCE Audit"},
 	{Key: "injection", Label: "Injection Audit"},
 	{Key: "auth", Label: "Auth & Session Audit"},

@@ -66,6 +66,11 @@ export const messages = {
       gap_check: '补扫结果',
     },
     stage: {
+      static_scan: {
+        label: '静态扫描',
+        shortLabel: '静态',
+        description: '基于正则表达式的基础静态扫描',
+      },
       rce: {
         label: 'RCE 审计',
         shortLabel: 'RCE',
@@ -322,6 +327,11 @@ export const messages = {
       gap_check: 'Gap Check',
     },
     stage: {
+      static_scan: {
+        label: 'Static Scan',
+        shortLabel: 'Static',
+        description: 'Basic regular expression static scanning',
+      },
       rce: {
         label: 'RCE Audit',
         shortLabel: 'RCE',
@@ -447,7 +457,7 @@ export const messages = {
       staticFinding: 'Not applicable (static finding)',
     },
     reportView: {
-      title: 'Task HTML Report',
+      title: 'Audit Report Export',
       subtitle: 'Only completed audit stages are detected and included. If only RCE and XSS are finished, the export will contain only those two sections.',
       detectedAudits: 'Detected Audits',
       confirmedFindings: 'Confirmed Findings',
