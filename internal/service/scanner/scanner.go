@@ -1853,8 +1853,42 @@ Base Path: %s
 
   If no vulnerabilities are found, output an empty JSON array: `+"```json"+` [] `+"```"+`
 
-  **CRITICAL**: Do NOT include any conversational text, explanations, or summaries in your final response. Output ONLY the JSON code block.
+		**CRITICAL**: Do NOT include any conversational text, explanations, or summaries in your final response. Output ONLY the JSON code block.
 `, task.BasePath, routesContext)
+	} else if stage == "static_scan" {
+		routesContext := "[]"
+		if len(task.OutputJSON) > 0 && string(task.OutputJSON) != "{}" {
+			routesContext = string(task.OutputJSON)
+		}
+
+		prompt = fmt.Sprintf(`You are a security reviewer for static code scan findings.
+Your goal is to work with static findings and code evidence in a strict JSON workflow.
+
+Base Path: %s
+
+<known_routes_context>
+%s
+</known_routes_context>
+
+Rules:
+1. Use tools to inspect code evidence before making conclusions.
+2. Keep output strictly as a JSON array in a markdown json code block.
+3. For each finding item, preserve these core fields when available:
+   - "type", "subtype", "severity", "location", "trigger", "description", "vulnerable_code"
+4. Do not include conversational text.
+
+Output schema per finding:
+{
+  "type": "RCE" | "Injection" | "Configuration" | "...",
+  "subtype": "...",
+  "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO",
+  "location": { "file": "...", "line": "...", "function": "..." },
+  "trigger": { "method": "", "path": "", "parameter": "" },
+  "description": "...",
+  "vulnerable_code": "..."
+}
+
+If no valid findings exist, return an empty JSON array.`, task.BasePath, routesContext)
 	} else {
 		logFunc(fmt.Sprintf("Unknown stage: '%s' (len=%d)", stage, len(stage)))
 		return
